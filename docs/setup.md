@@ -2,7 +2,7 @@
 
 ## Dependencies and loading
 
-The package declares `pi.extensions: ["./index.ts"]`. Pi can load that entry directly with `pi -e /absolute/path/to/compute/index.ts`, or register the local package with `pi install /absolute/path/to/compute` after `npm ci`. Installing into Pi changes that Pi configuration; it is not part of snapshot creation. Do not load the original extension and this snapshot together. Use the isolated-agent-directory command in the README to try the snapshot without touching the working configuration.
+The package declares `pi.extensions: ["./index.ts"]`. Pi can load that entry directly with `pi -e /absolute/path/to/compute/index.ts`, or register the local package with `pi install /absolute/path/to/compute` after `npm ci`. Installing into Pi changes that Pi configuration; it is not part of snapshot creation. Do not load the original extension and this snapshot together. To try it without your normal agent configuration, use `PI_COMPUTE_NODE="$(command -v node)" PI_CODING_AGENT_DIR="$(mktemp -d)" pi -e /absolute/path/to/compute/index.ts`. That temporary agent directory requires its own model/login setup.
 
 Runtime imports require `@earendil-works/pi-coding-agent` (workspace patches and image utilities), `@earendil-works/pi-tui` (rendering), and `typebox` (schemas and validation). They are direct, pinned dependencies, not assumed global packages. Node is needed for the worker; `PI_COMPUTE_NODE` overrides its executable. Without the override the code uses the host’s `process.execPath`, so set it explicitly when Pi runs under Bun. Bash is needed for `system.bash`; workspace search uses JavaScript rather than an external ripgrep executable.
 

@@ -2,42 +2,32 @@
 
 Compute is a tool I built to keep AI context clean. It runs operations in an isolated JavaScript worker and returns only the results the AI needs, instead of dumping walls of logs into the conversation.
 
-**Work in progress.** Known Pi UI glitches remain; renderer regression tests do not mean the interactive UI is glitch-free. Tested on Linux only. macOS and Windows are untested; no support is claimed for either.
+Work in progress. Some Pi UI glitches remain. Tested on Linux only; macOS and Windows are untested.
 
-## Setup
+## Install
 
-You need Node.js 22.19.0 or newer, npm, and Pi. This snapshot pins the inspected Pi packages to 0.85.1. Bun is also required for tests (tested with 1.4.0). Bash is required for `system.bash`; commands passed to `system.exec` must be installed separately.
+With Pi, Node.js 22.19+ and npm installed:
 
-```sh
-npm ci
-# From this checkout; a separate agent directory avoids duplicate extensions.
-PI_COMPUTE_NODE="$(command -v node)" PI_CODING_AGENT_DIR="$(mktemp -d)" npx --no-install pi -e ./index.ts
-npm test
-```
+1. Put this repo's folder at `~/.pi/agent/extensions/compute`.
+2. Install its dependencies:
 
-The temporary Pi agent directory starts without your normal agent settings, credentials, or extensions. Configure your own model/login to run an AI session. Nothing here copies personal settings. See [integration and optional MCP](docs/setup.md) before using an existing Pi configuration.
+   ```sh
+   cd ~/.pi/agent/extensions/compute
+   npm install
+   ```
 
-## What it exposes
+3. Start Pi, or run `/reload` if it is already open.
 
-- `workspace`: read, write, edit, glob, grep, and image reads.
-- `system.exec`: exact argument arrays, without shell parsing.
-- `system.bash`: shell commands through `bash -lc`.
-- Optional MCP methods discovered at session start, exposed under `mcp`.
+Keep only one copy loaded. If Pi runs under Bun, launch it with `PI_COMPUTE_NODE="$(command -v node)" pi` so the worker uses Node.
 
-Provider methods are callable inside a Compute plan, not as separate model-facing tools. Plans can filter results, branch, and combine calls. Oversized results go to temporary files for later readback; see [failure handling and recovery](docs/recovery.md).
+## Usage
 
-The worker uses a child process and a Node VM, not a security boundary for hostile code. Provider calls run with the Pi user’s filesystem, process, and network permissions. The 64 MiB budget uses a heap watchdog, with a separate 128 MiB old-space cap; it is not a hard 64 MiB process-memory limit.
+The AI calls Compute with a JavaScript plan using:
 
-## Development
+- `workspace.*` for files and searches.
+- `system.exec` for direct commands, or `system.bash` for shell commands.
+- `mcp.*` for tools discovered from the configured MCP server.
 
-```sh
-npm test
-npm run test:unit
-npm run test:integration
-```
+Compute keeps other tools inactive by default, except an available subagent tool. Pass `--keep-builtin-tools` to keep the built-ins too.
 
-The runner selects the real Bun tests and sets `PI_COMPUTE_NODE` to Node unless already supplied. No build step is needed: Pi loads TypeScript and the worker is JavaScript.
-
-See [test results and known limitations](docs/testing.md).
-
-No open-source license has been assigned to this snapshot. Existing attribution comments remain; dependency licenses belong to their respective authors.
+See [setup details](docs/setup.md) for optional MCP configuration and [testing](docs/testing.md) for test results and limitations. To run the tests, install Bun and run `npm test`.
