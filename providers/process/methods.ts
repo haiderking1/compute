@@ -22,11 +22,8 @@ export async function runSystemExec(args: Record<string, unknown>, env: MethodEn
 }
 
 // ---------------------------------------------------------------------------
-// raid.bash — pi's model-facing shell tool (Raid has no shell tool; the `raid`
-// provider wraps every other model-facing capability, and pi's is `bash`)
-// ---------------------------------------------------------------------------
-
-export async function runRaidBash(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
+// system.bash runs a shell command, unlike the exact argv API in system.exec.
+export async function runSystemBash(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
 	const command = String(args.command ?? "");
 	if (!command.trim()) return toolError("bash requires a non-empty command.");
 	const timeoutMs = typeof args.timeout === "number" && args.timeout > 0 ? args.timeout * 1000 : undefined;

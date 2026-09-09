@@ -13,15 +13,15 @@ export function makeComputeToolDefinition() {
 		label: "Compute",
 		renderShell: "self" as const,
 		description: buildComputeDescription(),
-		promptSnippet: "Run one isolated JavaScript plan composing workspace, system, and raid providers, returning only the final value",
+		promptSnippet: "Run one isolated JavaScript plan composing workspace, system, and mcp providers, returning only the final value",
 		promptGuidelines: [
 			"Prefer compute for any multi-step file, search, or process work instead of many separate read/bash/write calls.",
 			"Write a single async arrow function that loops, branches, filters, and shapes results inside the plan.",
 			"Return the smallest useful value (a slice, a summary, a boolean). Do not dump large arrays back to the model.",
 			"For independent calls that can fail separately, use Promise.allSettled and retain only needed fulfilled values and provider error messages. Check system.exec exitCode separately.",
 			"If output was saved to a temporary file, read or filter that file. Do not rerun a completed plan to recover its output, especially if it changed files.",
-			"compute is the only callable tool — provider methods like raid.web_search_exa are globals inside compute plans, never tool names; calling one directly fails with 'Tool not found'.",
-			"system.exec takes an exact argv array with no shell; raid.bash runs a shell command string; raid.* also exposes web search/fetch tools.",
+			"compute is the only callable tool — provider methods like mcp.web_search_exa are globals inside compute plans, never tool names; calling one directly fails with 'Tool not found'.",
+			"system.exec takes an exact argv array with no shell; system.bash runs a shell command string; mcp.* also exposes web search/fetch tools.",
 			"Always set title to a short one-line summary of the plan's action — the user sees it instead of the code.",
 		],
 		renderCall: renderComputeCall,
@@ -98,7 +98,7 @@ export function makeComputeToolDefinition() {
 				const message = error instanceof Error ? error.message : String(error);
 				// Raid maps its NOT_SERIALIZABLE marker to a friendly message.
 				return toolError(
-					message.includes("__RAID_COMPUTE_NOT_SERIALIZABLE__")
+					message.includes("__COMPUTE_NOT_SERIALIZABLE__")
 						? "compute result is not JSON-serializable. Return a plain value."
 						: message,
 					trace.details(),

@@ -37,7 +37,7 @@ test("JSON results beyond the former hard limit remain complete in the saved art
 
 test("oversized nested and top-level image results retain attachments, error state, and trace", async () => {
   const image = { type: "image", data: "aW1hZ2U=", mimeType: "image/png" };
-  const envelope = { __raidToolResult: true, result: { content: [{ type: "text", text: "x".repeat(9000) }, image], details: { source: "fixture" }, isError: true } };
+  const envelope = { __computeToolResult: true, result: { content: [{ type: "text", text: "x".repeat(9000) }, image], details: { source: "fixture" }, isError: true } };
   for (const value of [envelope, { screenshot: envelope }]) {
     const result = await rendered(JSON.stringify(value), { codeModeCalls: [{ provider: "workspace", method: "read", is_error: false }] });
     expect(result.content[1]).toEqual(image);

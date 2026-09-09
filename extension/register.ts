@@ -16,10 +16,10 @@ export default function computeExtension(pi: ExtensionAPI) {
 	// capabilities, never model-facing tools. pi has no per-tool visibility
 	// flag, so we get the same result by making compute the only ACTIVE tool.
 	// Everything else stays registered but inactive; the built-ins remain
-	// reachable through the workspace/system/raid providers.
+	// reachable through the workspace/system/mcp providers.
 	const FORCE_FLAG = "keep-builtin-tools";
 	pi.registerFlag(FORCE_FLAG, {
-		description: "Keep read/bash/edit/write active alongside compute (disables Raid's one-tool model)",
+		description: "Keep read/bash/edit/write active alongside compute (disables compute-only mode)",
 		type: "boolean",
 		default: false,
 	});
@@ -64,7 +64,7 @@ function safeNotify(
 		pi.setActiveTools(["compute"]);
 		try {
 			ctx.ui?.notify(
-				"compute: model limited to the compute tool only (Raid parity) — pass --keep-builtin-tools to restore read/bash/edit/write",
+				"compute: model limited to the compute tool only — pass --keep-builtin-tools to restore read/bash/edit/write",
 				"info",
 			);
 		} catch {
@@ -74,7 +74,7 @@ function safeNotify(
 
 	pi.registerTool(makeComputeToolDefinition());
 
-	// Discover MCP web tools (raid.*) and re-register so the generated
+	// Discover MCP web tools (mcp.*) and re-register so the generated
 	// declarations include them. pi replaces a tool registered under the same
 	// name and refreshes the active tool set.
 	let discoveryStarted = false;
@@ -88,19 +88,19 @@ function safeNotify(
 			const client = new McpClient();
 			await client.connect();
 			const tools = await client.listTools();
-			const raid = getProviders().find((provider) => provider.name === "raid");
-			if (!raid) return;
+			const mcp = getProviders().find((provider) => provider.name === "mcp");
+			if (!mcp) return;
 			let added = 0;
 			for (const tool of tools) {
 				if (!tool?.name) continue;
-				if (raid.methods.some((method) => method.name === tool.name)) continue;
+				if (mcp.methods.some((method) => method.name === tool.name)) continue;
 				const schema = toTypeBox(tool.inputSchema);
 				const description = tool.description?.trim().replace(/\s+/g, " ") || `Exa MCP tool: ${tool.name}`;
-				raid.methods.push({
+				mcp.methods.push({
 					name: tool.name,
 					description,
 					schema,
-					returns: "RaidToolOutput",
+					returns: "ComputeToolOutput",
 					run: async (args) => {
 						const content = await client.callTool(tool.name, args ?? {});
 						return toolText(renderMcpContent(content, tool.name));
@@ -111,12 +111,12 @@ function safeNotify(
 			if (added > 0) {
 				refreshProviders();
 				pi.registerTool(makeComputeToolDefinition());
-				// raid.* web methods are reachable through compute only, so re-apply
+				// mcp.* web methods are reachable through compute only, so re-apply
 				// the one-tool rule after the re-registration refreshed the tool set.
 				// The captured ctx can go stale if the session is replaced while MCP
 				// discovery connects — enforceComputeOnly guards stale ui access.
 				setTimeout(() => enforceComputeOnly(ctx), 0);
-				safeNotify(ctx, `compute: registered ${added} raid.* web tool(s) from ${MCP_URL}`, "info");
+				safeNotify(ctx, `compute: registered ${added} mcp.* web tool(s) from ${MCP_URL}`, "info");
 			}
 		})().catch((error: unknown) => {
 			safeNotify(ctx, `compute: MCP discovery unavailable (${error instanceof Error ? error.message : String(error)})`, "warning");

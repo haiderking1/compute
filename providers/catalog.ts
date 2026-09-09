@@ -1,6 +1,6 @@
 import { Type } from "typebox";
 import type { MethodSpec, ProviderSpec } from "../core/types.ts";
-import { runRaidBash, runSystemExec } from "./process/methods.ts";
+import { runSystemBash, runSystemExec } from "./process/methods.ts";
 import { runWorkspaceEdit, runWorkspaceGlob, runWorkspaceGrep, runWorkspaceRead, runWorkspaceWrite } from "./workspace/methods.ts";
 
 const EXEC_RETURN = "{ exitCode: number; stdout: string; stderr: string }";
@@ -24,7 +24,7 @@ function builtinProviders(): ProviderSpec[] {
 						},
 						{ additionalProperties: false },
 					),
-					returns: "RaidToolOutput",
+					returns: "ComputeToolOutput",
 					run: runWorkspaceRead,
 				},
 				{
@@ -37,7 +37,7 @@ function builtinProviders(): ProviderSpec[] {
 						},
 						{ additionalProperties: false },
 					),
-					returns: "RaidToolOutput",
+					returns: "ComputeToolOutput",
 					run: runWorkspaceWrite,
 				},
 				{
@@ -70,7 +70,7 @@ function builtinProviders(): ProviderSpec[] {
 						},
 						{ additionalProperties: false },
 					),
-					returns: "RaidToolOutput",
+					returns: "ComputeToolOutput",
 					prepare: (args) => {
 						// Raid's prepare_arguments: accept JSON-stringified edits and the
 						// legacy single oldText/newText pair.
@@ -138,11 +138,6 @@ function builtinProviders(): ProviderSpec[] {
 					returns: EXEC_RETURN,
 					run: runSystemExec,
 				},
-			],
-		},
-		{
-			name: "raid",
-			methods: [
 				{
 					name: "bash",
 					description:
@@ -163,10 +158,11 @@ function builtinProviders(): ProviderSpec[] {
 						{ additionalProperties: false },
 					),
 					returns: EXEC_RETURN,
-					run: runRaidBash,
+					run: runSystemBash,
 				},
 			],
 		},
+		{ name: "mcp", methods: [] },
 	];
 }
 

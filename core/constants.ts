@@ -13,7 +13,7 @@ export const MAX_SEARCH_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_STREAM_BYTES = 200_000;
 export const PIPE_DRAIN_GRACE_MS = 100;
 export const MEMORY_LIMIT_BYTES = 64 * 1024 * 1024;
-export const NOT_SERIALIZABLE = "__RAID_COMPUTE_NOT_SERIALIZABLE__";
+export const NOT_SERIALIZABLE = "__COMPUTE_NOT_SERIALIZABLE__";
 
 export const IGNORED_DIRS = new Set([
 	".git",

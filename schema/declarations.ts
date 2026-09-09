@@ -93,9 +93,9 @@ function inputTypeName(provider: string, method: string): string {
 
 export function buildDeclarations(catalog: ProviderSpec[]): string {
 	let out =
-		'type RaidImage = { type: "image"; data: string; mimeType: string };\n' +
-		"type RaidImageOutput = { text: string; images: RaidImage[] };\n" +
-		"type RaidToolOutput = string | { text: string; details: unknown } | RaidImageOutput;\n\n";
+		'type ComputeImage = { type: "image"; data: string; mimeType: string };\n' +
+		"type ComputeImageOutput = { text: string; images: ComputeImage[] };\n" +
+		"type ComputeToolOutput = string | { text: string; details: unknown } | ComputeImageOutput;\n\n";
 
 	for (const provider of catalog) {
 		for (const method of provider.methods) {

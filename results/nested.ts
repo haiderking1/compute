@@ -1,6 +1,6 @@
 /**
  * Raid parity: decode_nested_result (mod.rs). A plan that returns the
- * __raidToolResult envelope — produced by the sandbox bridge whenever a
+ * __computeToolResult envelope — produced by the sandbox bridge whenever a
  * provider tool call's result carries image content — is decoded into the
  * real tool result so image blocks reach the model instead of base64 text.
  */
@@ -17,7 +17,7 @@ export function decodeNestedResult(output: string): {
 	}
 	if (!value || typeof value !== "object") return null;
 	const wrapper = value as Record<string, unknown>;
-	if (wrapper.__raidToolResult !== true) return null;
+	if (wrapper.__computeToolResult !== true) return null;
 	const result = wrapper.result;
 	if (!result || typeof result !== "object") return null;
 	const record = result as Record<string, unknown>;
@@ -44,7 +44,7 @@ export function decodeNestedResult(output: string): {
 }
 
 /**
- * Raid only decodes a TOP-LEVEL __raidToolResult envelope. That is too
+ * Raid only decodes a TOP-LEVEL tool-result envelope. That is too
  * brittle for composed plans — a model that returns
  * { screenshot: await read(png), log: lines } nests the envelope and the
  * base64 would flow back as text (and trip the output guard). Hoist every
@@ -65,7 +65,7 @@ export function hoistImageEnvelopes(
 	if (Array.isArray(value)) return value.map((item) => hoistImageEnvelopes(item, images, depth + 1));
 	if (!value || typeof value !== "object") return value;
 	const record = value as Record<string, unknown>;
-	if (record.__raidToolResult === true && record.result && typeof record.result === "object") {
+	if (record.__computeToolResult === true && record.result && typeof record.result === "object") {
 		const result = record.result as Record<string, unknown>;
 		const content = Array.isArray(result.content) ? result.content : [];
 		const texts: string[] = [];

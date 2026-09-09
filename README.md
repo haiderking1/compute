@@ -6,7 +6,7 @@ Compute is a tool I built to keep AI context clean. It runs operations in an iso
 
 ## Setup
 
-You need Node.js 22.19.0 or newer, npm, and Pi. This snapshot pins the inspected Pi packages to 0.85.1. Bun is also required for tests (tested with 1.4.0). Bash is required for `raid.bash`; commands passed to `system.exec` must be installed separately.
+You need Node.js 22.19.0 or newer, npm, and Pi. This snapshot pins the inspected Pi packages to 0.85.1. Bun is also required for tests (tested with 1.4.0). Bash is required for `system.bash`; commands passed to `system.exec` must be installed separately.
 
 ```sh
 npm ci
@@ -21,8 +21,8 @@ The temporary Pi agent directory starts without your normal agent settings, cred
 
 - `workspace`: read, write, edit, glob, grep, and image reads.
 - `system.exec`: exact argument arrays, without shell parsing.
-- `raid.bash`: shell commands through `bash -lc`.
-- Optional MCP methods discovered at session start, exposed under `raid`.
+- `system.bash`: shell commands through `bash -lc`.
+- Optional MCP methods discovered at session start, exposed under `mcp`.
 
 Provider methods are callable inside a Compute plan, not as separate model-facing tools. Plans can filter results, branch, and combine calls. Oversized results go to temporary files for later readback; see [failure handling and recovery](docs/recovery.md).
 

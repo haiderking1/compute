@@ -62,7 +62,7 @@ describe("isSkillLoad", () => {
 	test("ignores provider-looking text in comments and strings", () => {
 		expect(
 			isSkillLoad({
-				code: 'async () => { /* raid.bash({}) */ const note = "system.exec({})"; return workspace.read({ path: "skills/a/SKILL.md" }); }',
+				code: 'async () => { /* system.bash({}) */ const note = "system.exec({})"; return workspace.read({ path: "skills/a/SKILL.md" }); }',
 			}),
 		).toBe(true);
 	});
@@ -101,4 +101,10 @@ describe("isSkillLoadTrace", () => {
 			}),
 		).toBe(false);
 	});
+});
+
+ test("system shell and discovered MCP calls keep mixed skill plans visible", () => {
+  for (const call of ['system.bash({ command: "true" })', 'mcp.search({ query: "test" })', 'mcp["search"]({ query: "test" })']) {
+    expect(isSkillLoad({ code: 'async () => { await workspace.read({ path: "skills/a/SKILL.md" }); return ' + call + '; }' })).toBe(false);
+  }
 });

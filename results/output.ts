@@ -32,7 +32,7 @@ export async function formatOutput(output: string, trace: unknown): Promise<Agen
 
   let text = output;
   const images: Image[] = [];
-  if (output.includes("__raidToolResult")) {
+  if (output.includes("__computeToolResult")) {
     try {
       const parsed: unknown = JSON.parse(output);
       if (parsed && typeof parsed === "object") {

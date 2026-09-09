@@ -1,5 +1,5 @@
 interface ProviderCall {
-	provider: "workspace" | "system" | "raid";
+	provider: "workspace" | "system" | "mcp";
 	method: string;
 	argumentsSource: string;
 }
@@ -9,7 +9,7 @@ interface ScanResult {
 	hasUnsupportedProviderReference: boolean;
 }
 
-const PROVIDERS = new Set(["workspace", "system", "raid"]);
+const PROVIDERS = new Set(["workspace", "system", "mcp"]);
 const SKILL_PATH = /(?:^|[\/])(?:SKILL\.md(?:$|[?#])|skills[\/])/i;
 const BACKTICK = String.fromCharCode(96);
 

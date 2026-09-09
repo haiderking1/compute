@@ -4,7 +4,7 @@
 
 The package declares `pi.extensions: ["./index.ts"]`. Pi can load that entry directly with `pi -e /absolute/path/to/compute/index.ts`, or register the local package with `pi install /absolute/path/to/compute` after `npm ci`. Installing into Pi changes that Pi configuration; it is not part of snapshot creation. Do not load the original extension and this snapshot together. Use the isolated-agent-directory command in the README to try the snapshot without touching the working configuration.
 
-Runtime imports require `@earendil-works/pi-coding-agent` (workspace patches and image utilities), `@earendil-works/pi-tui` (rendering), and `typebox` (schemas and validation). They are direct, pinned dependencies, not assumed global packages. Node is needed for the worker; `PI_COMPUTE_NODE` overrides its executable. Without the override the code uses the host’s `process.execPath`, so set it explicitly when Pi runs under Bun. Bash is needed for `raid.bash`; workspace search uses JavaScript rather than an external ripgrep executable.
+Runtime imports require `@earendil-works/pi-coding-agent` (workspace patches and image utilities), `@earendil-works/pi-tui` (rendering), and `typebox` (schemas and validation). They are direct, pinned dependencies, not assumed global packages. Node is needed for the worker; `PI_COMPUTE_NODE` overrides its executable. Without the override the code uses the host’s `process.execPath`, so set it explicitly when Pi runs under Bun. Bash is needed for `system.bash`; workspace search uses JavaScript rather than an external ripgrep executable.
 
 At session start and before each agent turn, Compute narrows active tools to `compute`, preserving `subagent` if registered. An explicit active set excluding Compute is respected. Pass `--keep-builtin-tools` to opt out of narrowing. The `/compute` command reports providers, active tools, worker path, and MCP URL. Use `/reload` after extension changes.
 
@@ -17,7 +17,7 @@ The built-in workspace and process providers need no MCP server or API key. On t
 - `EXA_MCP_URL` overrides the default `https://mcp.exa.ai/mcp`.
 - `EXA_API_KEY`, if present, is sent as an Authorization Bearer header to that URL. Use only an endpoint you trust.
 - The client implements Streamable HTTP JSON/SSE itself; no MCP SDK or local MCP server package is required.
-- Discovery adds methods under `raid` from the server’s advertised schemas. Available names depend on the server; do not assume a fixed list.
+- Discovery adds methods under `mcp` from the server’s advertised schemas. Available names depend on the server; do not assume a fixed list.
 - Connection/request timeout is 15 seconds. Discovery failure produces a UI warning and leaves local providers available. The first discovery attempt is not automatically retried each session.
 
 Supply your own environment variables outside the repository. Do not commit keys, authenticated URLs, Pi settings, or model credentials. Live MCP access was not tested for this snapshot.

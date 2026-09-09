@@ -3,7 +3,7 @@
  *
  * Executes a single JavaScript plan in a fresh child process. The plan is an
  * async arrow function that composes provider methods (`workspace.*`,
- * `system.*`, `raid.*`). Every provider call is bridged to the parent pi process
+ * `system.*`, `mcp.*`). Every provider call is bridged to the parent pi process
  * over a line-delimited JSON protocol on stdio, matching Raid's compute worker.
  *
  * The plan runs inside a `node:vm` context whose only globals are the provider
@@ -35,7 +35,7 @@ import { createContext, runInContext } from "node:vm";
 import readline from "node:readline";
 import { ProviderCallError, formatPlanError } from "./runtime/errors.mjs";
 
-const NOT_SERIALIZABLE = "__RAID_COMPUTE_NOT_SERIALIZABLE__";
+const NOT_SERIALIZABLE = "__COMPUTE_NOT_SERIALIZABLE__";
 /** Raid parity: rquickjs runtime memory limit. */
 const MEMORY_LIMIT_BYTES = 64 * 1024 * 1024;
 
@@ -74,7 +74,7 @@ async function invoke(provider, method, input) {
 	const text = texts.join("\n");
 
 	if (images.length > 0) {
-		return { __raidToolResult: true, result, text, images };
+		return { __computeToolResult: true, result, text, images };
 	}
 	if (result?.details && Object.prototype.hasOwnProperty.call(result.details, "codeModeValue")) {
 		return result.details.codeModeValue;
@@ -123,11 +123,11 @@ function wrappedSource(code) {
 	// backticks or ${...} cannot corrupt the generated source.
 	return (
 		"(async () => {\n" +
-		"  const __raidPlan = (\n" +
+		"  const __computePlan = (\n" +
 		code +
 		"\n);\n" +
-		'  if (typeof __raidPlan !== "function") throw new TypeError("compute code must be an async arrow function");\n' +
-		"  const value = await __raidPlan();\n" +
+		'  if (typeof __computePlan !== "function") throw new TypeError("compute code must be an async arrow function");\n' +
+		"  const value = await __computePlan();\n" +
 		'  if (value === undefined) return "undefined";\n' +
 		'  if (typeof value === "string") return value;\n' +
 		"  try {\n" +

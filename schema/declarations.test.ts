@@ -34,9 +34,9 @@ describe("declaration generation", () => {
 
 	test("emits deterministic names, fields, comments, and signatures", () => {
 		expect(buildDeclarations(catalog)).toBe(
-			'type RaidImage = { type: "image"; data: string; mimeType: string };\n' +
-				'type RaidImageOutput = { text: string; images: RaidImage[] };\n' +
-				'type RaidToolOutput = string | { text: string; details: unknown } | RaidImageOutput;\n\n' +
+			'type ComputeImage = { type: "image"; data: string; mimeType: string };\n' +
+				'type ComputeImageOutput = { text: string; images: ComputeImage[] };\n' +
+				'type ComputeToolOutput = string | { text: string; details: unknown } | ComputeImageOutput;\n\n' +
 				'type SampleApiFindItemInput = { "item-id": string | null; zeta?: boolean };\n\n' +
 				'declare const sample-api: {\n' +
 				'  /** Find * / an item safely. */\n' +

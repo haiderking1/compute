@@ -3,7 +3,7 @@ import { decodeNestedResult, hoistImageEnvelopes, mergeTraceDetails } from "./ne
 
 function envelope(text: string, data: string, mimeType?: string) {
 	return {
-		__raidToolResult: true,
+		__computeToolResult: true,
 		result: {
 			content: [
 				{ type: "text", text },
@@ -29,7 +29,7 @@ describe("nested results", () => {
 
 	test("rejects ordinary and malformed wrappers", () => {
 		expect(decodeNestedResult("not json")).toBeNull();
-		expect(decodeNestedResult(JSON.stringify({ __raidToolResult: true, result: {} }))).toBeNull();
+		expect(decodeNestedResult(JSON.stringify({ __computeToolResult: true, result: {} }))).toBeNull();
 		expect(decodeNestedResult(JSON.stringify({ result: { content: [] } }))).toBeNull();
 	});
 

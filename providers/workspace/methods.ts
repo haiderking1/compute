@@ -19,7 +19,7 @@ export async function runWorkspaceRead(args: Record<string, unknown>, env: Metho
 
 	// Image escape hatch (pi read parity): image files become native image
 	// blocks instead of failing the UTF-8/NUL check. The worker wraps results
-	// carrying image content into the __raidToolResult envelope, which the
+	// carrying image content into the __computeToolResult envelope, which the
 	// plan returns unchanged so decodeNestedResult can attach the image to
 	// the model-facing tool result. offset/limit apply to text only, like
 	// pi's own read tool.
