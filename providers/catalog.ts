@@ -3,7 +3,10 @@ import type { MethodSpec, ProviderSpec } from "../core/types.ts";
 import { runSystemBash, runSystemExec } from "./process/methods.ts";
 import { runWorkspaceEdit, runWorkspaceGlob, runWorkspaceGrep, runWorkspaceRead, runWorkspaceWrite } from "./workspace/methods.ts";
 
-const EXEC_RETURN = "{ exitCode: number; stdout: string; stderr: string }";
+const EXEC_RETURN = "{ exitCode: number; stdout: string; stderr: string; timedOut?: true }";
+const GREP_RETURN = "{ matches: Array<{ path: string; line: number; text: string }>; truncated: boolean }";
+const TIMEOUT_DESCRIPTION =
+	"Optional hard deadline in seconds for this command. A command killed by it returns timedOut: true and exitCode 137.";
 
 function builtinProviders(): ProviderSpec[] {
 	return [
@@ -92,7 +95,8 @@ function builtinProviders(): ProviderSpec[] {
 				},
 				{
 					name: "glob",
-					description: "Find files by path glob. A single * matches one path component and ** is recursive.",
+					description:
+						"Find files by path glob. A single * matches one path component and ** is recursive. Returns sorted paths; fails instead of truncating when more than 10,000 files match.",
 					schema: Type.Object(
 						{ pattern: Type.String({ description: "Path glob such as src/**/*.rs" }) },
 						{ additionalProperties: false },
@@ -103,15 +107,22 @@ function builtinProviders(): ProviderSpec[] {
 				{
 					name: "grep",
 					description:
-						"Search UTF-8 files with a regular expression. Returns path, line number, and matching text.",
+						"Search UTF-8 files with a regular expression. Returns structured matches (path, 1-indexed line, text) sorted by path. Narrow with glob instead of filtering a huge result; truncated is true when the limit cut the results.",
 					schema: Type.Object(
 						{
 							pattern: Type.String({ description: "Regular expression" }),
 							path: Type.Optional(Type.String({ description: "Optional file or directory path" })),
+							glob: Type.Optional(
+								Type.String({ description: "Only search files whose path relative to path matches, e.g. **/*.ts" }),
+							),
+							ignoreCase: Type.Optional(Type.Boolean({ description: "Case-insensitive match" })),
+							limit: Type.Optional(
+								Type.Integer({ minimum: 1, maximum: 50_000, description: "Maximum matches to return (default 10,000)" }),
+							),
 						},
 						{ additionalProperties: false },
 					),
-					returns: "string",
+					returns: GREP_RETURN,
 					run: runWorkspaceGrep,
 				},
 			],
@@ -129,9 +140,8 @@ function builtinProviders(): ProviderSpec[] {
 								minItems: 1,
 								description: 'Executable followed by exact arguments, for example ["git", "status"]',
 							}),
-							timeout: Type.Optional(
-								Type.Number({ description: "Optional hard deadline in seconds for this command" }),
-							),
+							cwd: Type.Optional(Type.String({ description: "Optional working directory" })),
+							timeout: Type.Optional(Type.Number({ description: TIMEOUT_DESCRIPTION })),
 						},
 						{ additionalProperties: false },
 					),
@@ -151,9 +161,7 @@ function builtinProviders(): ProviderSpec[] {
 									description: "Optional extra environment variables",
 								}),
 							),
-							timeout: Type.Optional(
-								Type.Number({ description: "Optional hard deadline in seconds for this command" }),
-							),
+							timeout: Type.Optional(Type.Number({ description: TIMEOUT_DESCRIPTION })),
 						},
 						{ additionalProperties: false },
 					),

@@ -49,7 +49,7 @@ console.log(JSON.stringify(result));`;
 		expect(value.text).toBe("alpha\ngamma\n");
 		expect(value.files).toHaveLength(1);
 		expect(value.files[0]).toEndWith("nested/sample.txt");
-		expect(value.matches).toContain("nested/sample.txt:2:gamma");
+		expect(value.matches).toEqual({ matches: [{ path: "nested/sample.txt", line: 2, text: "gamma" }], truncated: false });
 		expect(value.processResult).toEqual({ exitCode: 0, stdout: "ok", stderr: "" });
 		expect(await readFile(file, "utf8")).toBe("alpha\ngamma\n");
 		expect(result.details.codeModeCalls.map(({ provider, method }: { provider: string; method: string }) => `${provider}.${method}`)).toEqual([

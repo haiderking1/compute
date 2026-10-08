@@ -1,14 +1,14 @@
-import { readFile, writeFile, mkdir, stat, glob } from "node:fs/promises";
-import { dirname, relative } from "node:path";
+import { readFile, writeFile, mkdir, glob } from "node:fs/promises";
+import { dirname } from "node:path";
 import { generateUnifiedPatch, detectSupportedImageMimeTypeFromFile } from "@earendil-works/pi-coding-agent";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
-import { MAX_GLOB_RESULTS, MAX_GREP_BYTES, MAX_GREP_RESULTS, MAX_SEARCH_FILE_BYTES } from "../../core/constants.ts";
+import { MAX_GLOB_RESULTS } from "../../core/constants.ts";
 import type { EditReplacement, MethodEnv } from "../../core/types.ts";
 import { toolError, toolText, toolValue } from "../../results/tool-result.ts";
 import { applyFileReplacements, parseEditReplacements } from "./edits.ts";
 import { fallbackImageAttachment, loadProcessImage } from "./images.ts";
 import { assertGlobAllowed, resolveAllowedPath } from "./confine.ts";
-import { truncateText, walk } from "./paths.ts";
+import { truncateText } from "./paths.ts";
 
 export { applyReplacements, parseEditReplacements } from "./edits.ts";
 
@@ -130,7 +130,10 @@ export async function runWorkspaceGlob(args: Record<string, unknown>, env: Metho
 	const results: string[] = [];
 	try {
 		for await (const match of glob(pattern, { cwd: env.cwd, onlyFiles: true }) as AsyncIterable<string>) {
-			if (results.length >= MAX_GLOB_RESULTS) break;
+			// Fail loudly: glob order is unsorted, so a cut list would be an arbitrary subset.
+			if (results.length >= MAX_GLOB_RESULTS) {
+				return toolError(`glob matched more than ${MAX_GLOB_RESULTS} files; narrow the pattern.`);
+			}
 			results.push(match);
 		}
 	} catch (error) {
@@ -140,49 +143,4 @@ export async function runWorkspaceGlob(args: Record<string, unknown>, env: Metho
 	return toolValue(results);
 }
 
-export async function runWorkspaceGrep(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
-	const pattern = String(args.pattern ?? "");
-	if (!pattern) return toolError("grep pattern must be a non-empty string.");
-	let regex: RegExp;
-	try {
-		regex = new RegExp(pattern, "u");
-	} catch (error) {
-		return toolError(`Invalid grep pattern: ${error instanceof Error ? error.message : String(error)}`);
-	}
-	const root = await resolveAllowedPath(args.path ? String(args.path) : ".", env.cwd);
-	const statResult = await stat(root);
-	let files: string[];
-	if (statResult.isFile()) {
-		files = [root];
-	} else if (statResult.isDirectory()) {
-		files = [];
-		for await (const f of walk(root)) files.push(f);
-	} else {
-		return toolError("grep path must be a file or directory.");
-	}
-	const output: string[] = [];
-	let matchCount = 0;
-	let truncated = false;
-	let totalBytes = 0;
-	for (const file of files) {
-		const bytes = await readFile(file);
-		if (bytes.length > MAX_SEARCH_FILE_BYTES || bytes.includes(0)) continue;
-		const content = bytes.toString("utf8");
-		const lines = content.split("\n");
-		const rel = relative(env.cwd, file);
-		for (let i = 0; i < lines.length; i++) {
-			if (!regex.test(lines[i])) continue;
-			const entry = `${rel}:${i + 1}:${lines[i]}\n`;
-			if (totalBytes + entry.length > MAX_GREP_BYTES || matchCount >= MAX_GREP_RESULTS) {
-				truncated = true;
-				break;
-			}
-			output.push(entry);
-			totalBytes += entry.length;
-			matchCount++;
-		}
-		if (truncated) break;
-	}
-	if (truncated) output.push("[truncated]\n");
-	return toolText(output.join("") || "(no matches)");
-}
+export { runWorkspaceGrep } from "./grep.ts";

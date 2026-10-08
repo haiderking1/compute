@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { constants } from "node:os";
 import { MAX_STREAM_BYTES, PIPE_DRAIN_GRACE_MS } from "../../core/constants.ts";
 import type { ProcessOutcome } from "../../core/types.ts";
 
@@ -85,8 +86,12 @@ export async function runProcess(
 	// A spawn failure (missing binary, bad cwd) emits "error" instead of "exit";
 	// unhandled, it crashes the server. Keep a permanent listener so a late
 	// "error" cannot crash it either.
-	const exitPromise = new Promise<number | null>((resolveExit, rejectExit) => {
-		proc.once("exit", (code) => resolveExit(code));
+	// A signal death reports the shell convention 128 + signal number (137 for
+	// SIGKILL) rather than a generic failure.
+	const exitPromise = new Promise<number>((resolveExit, rejectExit) => {
+		proc.once("exit", (code, exitSignal) =>
+			resolveExit(code ?? (exitSignal ? 128 + (constants.signals[exitSignal] ?? 0) : 1)),
+		);
 		proc.on("error", (error) => rejectExit(describeSpawnError(error, options.cwd)));
 	});
 	const stdoutPromise = readStream(proc.stdout, MAX_STREAM_BYTES);
@@ -96,7 +101,13 @@ export async function runProcess(
 	const kill = () => killProcessGroup(proc);
 	const onAbort = () => kill();
 	if (options.signal) options.signal.addEventListener("abort", onAbort, { once: true });
-	if (options.timeoutMs !== undefined) timer = setTimeout(kill, options.timeoutMs);
+	let timedOut = false;
+	if (options.timeoutMs !== undefined) {
+		timer = setTimeout(() => {
+			timedOut = true;
+			kill();
+		}, options.timeoutMs);
+	}
 
 	try {
 		const exitCode = await exitPromise;
@@ -113,7 +124,7 @@ export async function runProcess(
 				return Promise.all([stdoutPromise, stderrPromise]);
 			}),
 		]);
-		return { exitCode: exitCode ?? 1, stdout, stderr };
+		return timedOut ? { exitCode, stdout, stderr, timedOut: true } : { exitCode, stdout, stderr };
 	} finally {
 		if (proc.pid !== undefined) options.execGroups.delete(proc.pid);
 		if (timer) clearTimeout(timer);

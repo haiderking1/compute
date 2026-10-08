@@ -60,6 +60,8 @@ export interface ProcessOutcome {
 	exitCode: number;
 	stdout: string;
 	stderr: string;
+	/** Present only when the per-command timeout killed the process. */
+	timedOut?: true;
 }
 
 export interface MethodSpec {

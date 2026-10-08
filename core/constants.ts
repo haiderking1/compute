@@ -6,9 +6,11 @@ export const PREVIEW_CHARS = 2_000;
 
 export const MAX_READ_BYTES = 200_000;
 export const MAX_READ_LINES = 2_000;
-export const MAX_GLOB_RESULTS = 500;
-export const MAX_GREP_RESULTS = 2_000;
-export const MAX_GREP_BYTES = 200_000;
+export const MAX_GLOB_RESULTS = 10_000;
+/** Default grep match limit; plans may raise it up to MAX_GREP_LIMIT. */
+export const MAX_GREP_RESULTS = 10_000;
+export const MAX_GREP_LIMIT = 50_000;
+export const MAX_GREP_LINE_CHARS = 500;
 export const MAX_SEARCH_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_STREAM_BYTES = 200_000;
 export const PIPE_DRAIN_GRACE_MS = 100;

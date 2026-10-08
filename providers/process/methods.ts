@@ -11,9 +11,10 @@ export async function runSystemExec(args: Record<string, unknown>, env: MethodEn
 		return toolError("exec(argv) requires a non-empty array of strings without NUL bytes.");
 	}
 	const timeoutMs = typeof args.timeout === "number" && args.timeout > 0 ? args.timeout * 1000 : undefined;
+	const cwd = args.cwd ? resolveWorkspacePath(String(args.cwd), env.cwd) : env.cwd;
 	try {
 		const outcome = await runProcess(argv, {
-			cwd: env.cwd,
+			cwd,
 			env: process.env,
 			timeoutMs,
 			signal: env.signal,
