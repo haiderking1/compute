@@ -4,11 +4,12 @@ import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { resolveWorkspacePath } from "./paths.ts";
 
 /**
- * Under Claude Code, workspace methods stay inside the project and Claude's per-user temp root
- * (where oversized results are saved), unless COMPUTE_ALLOW_OUTSIDE=1. Pi keeps unrestricted paths.
+ * Workspace paths are unrestricted by default: system.bash can reach any file anyway, so confining
+ * workspace methods alone guards nothing. COMPUTE_CONFINE=1 opts in to keeping them inside the
+ * project and Claude's per-user temp root (where oversized results are saved).
  */
 export function workspaceConfined(): boolean {
-	return process.env.CLAUDECODE === "1" && process.env.COMPUTE_ALLOW_OUTSIDE !== "1";
+	return process.env.COMPUTE_CONFINE === "1";
 }
 
 export function claudeTempRoot(): string {
@@ -45,8 +46,8 @@ export async function resolveAllowedPath(input: string, cwd: string): Promise<st
 	const roots = await Promise.all([cwd, claudeTempRoot()].map(realpathAllowingMissing));
 	if (roots.some((root) => within(real, root))) return abs;
 	throw new Error(
-		`${input} is outside the project (${cwd}). Under Claude Code, workspace methods are limited to the project ` +
-			"and Claude's temp directory; set COMPUTE_ALLOW_OUTSIDE=1 on the compute server to lift this.",
+		`${input} is outside the project (${cwd}). COMPUTE_CONFINE=1 limits workspace methods to the project ` +
+			"and Claude's temp directory; unset it on the compute server to lift this.",
 	);
 }
 

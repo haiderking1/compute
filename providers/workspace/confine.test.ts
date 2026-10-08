@@ -4,18 +4,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertGlobAllowed, claudeTempRoot, resolveAllowedPath } from "./confine.ts";
 
-const saved = { claude: process.env.CLAUDECODE, allow: process.env.COMPUTE_ALLOW_OUTSIDE };
+const saved = { claude: process.env.CLAUDECODE, confine: process.env.COMPUTE_CONFINE };
 let base: string;
 let project: string;
 beforeEach(async () => {
 	process.env.CLAUDECODE = "1";
-	delete process.env.COMPUTE_ALLOW_OUTSIDE;
+	process.env.COMPUTE_CONFINE = "1";
 	base = await mkdtemp(join(tmpdir(), "pi-compute-confine-test-"));
 	project = join(base, "project");
 	await mkdir(project);
 });
 afterEach(async () => {
-	for (const [key, value] of [["CLAUDECODE", saved.claude], ["COMPUTE_ALLOW_OUTSIDE", saved.allow]] as const) {
+	for (const [key, value] of [["CLAUDECODE", saved.claude], ["COMPUTE_CONFINE", saved.confine]] as const) {
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
 	}
@@ -35,13 +35,15 @@ test("a symlink inside the project cannot reach outside it", async () => {
 	await expect(resolveAllowedPath("escape/hostname", project)).rejects.toThrow("outside the project");
 });
 
-test("Pi and COMPUTE_ALLOW_OUTSIDE=1 keep unrestricted paths", async () => {
-	process.env.COMPUTE_ALLOW_OUTSIDE = "1";
-	expect(await resolveAllowedPath("/etc/hostname", project)).toBe("/etc/hostname");
-	delete process.env.COMPUTE_ALLOW_OUTSIDE;
-	delete process.env.CLAUDECODE;
-	expect(await resolveAllowedPath("/etc/hostname", project)).toBe("/etc/hostname");
-	await expect(assertGlobAllowed("/etc/*", project)).resolves.toBeUndefined();
+test("without COMPUTE_CONFINE=1 paths are unrestricted, under Claude Code and Pi alike", async () => {
+	delete process.env.COMPUTE_CONFINE;
+	for (const claude of ["1", undefined]) {
+		if (claude === undefined) delete process.env.CLAUDECODE;
+		else process.env.CLAUDECODE = claude;
+		expect(await resolveAllowedPath("/etc/hostname", project)).toBe("/etc/hostname");
+		expect(await resolveAllowedPath("../sibling.txt", project)).toBe(join(base, "sibling.txt"));
+		await expect(assertGlobAllowed("/etc/*", project)).resolves.toBeUndefined();
+	}
 });
 
 test("confined globs are checked through their literal prefix", async () => {
