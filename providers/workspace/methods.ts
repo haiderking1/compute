@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import { generateUnifiedPatch, detectSupportedImageMimeTypeFromFile } from "@earendil-works/pi-coding-agent";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import { MAX_GLOB_RESULTS, MAX_READ_BYTES } from "../../core/constants.ts";
+import { formatMiB } from "../../core/format.ts";
 import type { EditReplacement, MethodEnv } from "../../core/types.ts";
 import { toolError, toolText, toolValue } from "../../results/tool-result.ts";
 import { applyFileReplacements, parseEditReplacements } from "./edits.ts";
@@ -10,10 +11,6 @@ import { fallbackImageAttachment, loadProcessImage } from "./images.ts";
 import { assertGlobAllowed, resolveAllowedPath } from "./confine.ts";
 
 export { applyReplacements, parseEditReplacements } from "./edits.ts";
-
-function mib(bytes: number): string {
-	return (bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, "");
-}
 
 export async function runWorkspaceRead(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
 	const path = String(args.path ?? "");
@@ -79,7 +76,7 @@ export async function runWorkspaceRead(args: Record<string, unknown>, env: Metho
 	if (selectedBytes > MAX_READ_BYTES) {
 		const lineCount = bytes.toString("utf8").split("\n").length;
 		return toolError(
-			`${path}: selected text is ${mib(selectedBytes)} MiB, over the ${mib(MAX_READ_BYTES)} MiB read limit (file has ${lineCount} lines). Read a range with offset/limit, or search it with workspace.grep.`,
+			`${path}: selected text is ${formatMiB(selectedBytes)} MiB, over the ${formatMiB(MAX_READ_BYTES)} MiB read limit (file has ${lineCount} lines). Read a range with offset/limit, or search it with workspace.grep.`,
 		);
 	}
 	return toolText(text);

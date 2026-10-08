@@ -1,4 +1,5 @@
-import { MAX_STREAM_BYTES } from "../../core/constants.ts";
+import { MAX_MCP_OUTPUT_BYTES } from "../../core/constants.ts";
+import { formatMiB } from "../../core/format.ts";
 import type { McpContentPart } from "../../core/types.ts";
 
 export function renderMcpContent(content: McpContentPart[] | undefined, tool: string): string {
@@ -16,7 +17,13 @@ export function renderMcpContent(content: McpContentPart[] | undefined, tool: st
 		}
 	}
 	const joined = parts.join("\n\n");
-	return joined.length > MAX_STREAM_BYTES
-		? `${joined.slice(0, MAX_STREAM_BYTES)}\n[truncated: ${tool} output exceeded ${MAX_STREAM_BYTES} bytes]`
-		: joined;
+	// A plan can't tell cut output from whole output, so fail (the bridge turns
+	// this into an mcp.<tool> rejection) and let it ask the tool for less.
+	const bytes = Buffer.byteLength(joined, "utf8");
+	if (bytes > MAX_MCP_OUTPUT_BYTES) {
+		throw new Error(
+			`${tool} returned ${formatMiB(bytes)} MiB, over the ${formatMiB(MAX_MCP_OUTPUT_BYTES)} MiB limit for mcp output. Ask the tool for less, e.g. a smaller maxCharacters or numResults, or fewer urls per call.`,
+		);
+	}
+	return joined;
 }

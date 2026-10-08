@@ -12,8 +12,8 @@ export const MAX_GREP_RESULTS = 10_000;
 export const MAX_GREP_LIMIT = 50_000;
 export const MAX_GREP_LINE_CHARS = 500;
 export const MAX_SEARCH_FILE_BYTES = 10 * 1024 * 1024;
-/** mcp.* tool output cap. */
-export const MAX_STREAM_BYTES = 200_000;
+/** mcp.* calls fail past this rather than returning cut output. */
+export const MAX_MCP_OUTPUT_BYTES = 4 * 1024 * 1024;
 /** Per-stream system.exec/bash output cap; hitting it sets stdoutTruncated/stderrTruncated. */
 export const MAX_PROCESS_OUTPUT_BYTES = 4 * 1024 * 1024;
 export const PIPE_DRAIN_GRACE_MS = 100;
