@@ -20,6 +20,19 @@ With Pi, Node.js 22.19+ and npm installed:
 
 Keep only one copy loaded. If Pi runs under Bun, launch it with `PI_COMPUTE_NODE="$(command -v node)" pi` so the worker uses Node.
 
+### Claude Code
+
+This repo is a Claude Code plugin and its own marketplace:
+
+```
+/plugin marketplace add haiderking1/compute
+/plugin install compute@compute
+```
+
+The plugin runs the `compute` MCP server (`server/`) and installs its npm dependencies on first start. It also adds a hook (`claude-code/`) that shows a plan's `title` in the tool row instead of its code. Plans run in the directory Claude Code was started in. Set `COMPUTE_CWD` to override it. Run the hook's tests with `claude plugin test claude-code`.
+
+For another MCP host, run `npm ci`, then point it at `node /absolute/path/to/compute/server/index.ts`.
+
 ## Usage
 
 The AI calls Compute with a JavaScript plan using:

@@ -6,7 +6,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const mode = process.argv[2] ?? "all";
 if (!["all", "unit", "integration"].includes(mode)) throw new Error("Unknown test mode: " + mode);
 const files = (await readdir(root, { recursive: true }))
-  .filter(path => !path.startsWith("node_modules/") && path.endsWith(".test.ts"))
+  .filter(path => !path.startsWith("node_modules/") && !path.startsWith("claude-code/") && path.endsWith(".test.ts"))
   .filter(path => mode === "all" || path.endsWith(".integration.test.ts") === (mode === "integration"))
   .sort().map(path => "./" + path);
 if (!files.length) throw new Error("No tests found");

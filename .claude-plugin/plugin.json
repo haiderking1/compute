@@ -1,0 +1,14 @@
+{
+  "name": "compute",
+  "version": "0.1.0",
+  "description": "Run operations in isolated JavaScript plans and return only the results the AI needs.",
+  "author": { "name": "haiderking1" },
+  "repository": "https://github.com/haiderking1/compute",
+  "hooks": "./claude-code/hooks/hooks.json",
+  "mcpServers": {
+    "compute": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/launch.mjs"]
+    }
+  }
+}

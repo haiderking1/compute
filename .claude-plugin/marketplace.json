@@ -1,0 +1,11 @@
+{
+  "name": "compute",
+  "owner": { "name": "haiderking1" },
+  "plugins": [
+    {
+      "name": "compute",
+      "source": "./",
+      "description": "Run operations in isolated JavaScript plans and return only the results the AI needs."
+    }
+  ]
+}
