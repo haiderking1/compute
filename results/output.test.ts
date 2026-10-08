@@ -47,3 +47,18 @@ test("oversized nested and top-level image results retain attachments, error sta
     if (value === envelope) { expect(result.isError).toBe(true); expect(details.source).toBe("fixture"); }
   }
 });
+
+test("oversized results are saved under Claude Code's temp root only when running there", async () => {
+  const previous = process.env.CLAUDECODE;
+  try {
+    for (const [flag, prefix] of [["1", `claude-${process.getuid!()}/compute-output-`], [undefined, "pi-compute-output-"]] as const) {
+      if (flag === undefined) delete process.env.CLAUDECODE;
+      else process.env.CLAUDECODE = flag;
+      const result = await rendered("x".repeat(INLINE_OUTPUT_MAX_BYTES + 1));
+      expect((result.details as any).codeModeOutput.path).toContain(prefix);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.CLAUDECODE;
+    else process.env.CLAUDECODE = previous;
+  }
+});

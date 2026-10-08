@@ -7,14 +7,15 @@ import type { EditReplacement, MethodEnv } from "../../core/types.ts";
 import { toolError, toolText, toolValue } from "../../results/tool-result.ts";
 import { applyFileReplacements, parseEditReplacements } from "./edits.ts";
 import { fallbackImageAttachment, loadProcessImage } from "./images.ts";
-import { resolveWorkspacePath, truncateText, walk } from "./paths.ts";
+import { assertGlobAllowed, resolveAllowedPath } from "./confine.ts";
+import { truncateText, walk } from "./paths.ts";
 
 export { applyReplacements, parseEditReplacements } from "./edits.ts";
 
 export async function runWorkspaceRead(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
 	const path = String(args.path ?? "");
 	if (!path.trim()) return toolError("Read requires a non-empty path");
-	const abs = resolveWorkspacePath(path, env.cwd);
+	const abs = await resolveAllowedPath(path, env.cwd);
 	const bytes = await readFile(abs);
 
 	// Image escape hatch (pi read parity): image files become native image
@@ -76,7 +77,7 @@ export async function runWorkspaceWrite(args: Record<string, unknown>, env: Meth
 	const path = String(args.path ?? "");
 	if (!path.trim()) return toolError("Write requires a non-empty path");
 	const content = String(args.content ?? "");
-	const abs = resolveWorkspacePath(path, env.cwd);
+	const abs = await resolveAllowedPath(path, env.cwd);
 	await mkdir(dirname(abs), { recursive: true });
 	await writeFile(abs, content, "utf8");
 	return toolText(`Wrote ${Buffer.byteLength(content, "utf8")} bytes to ${path}`);
@@ -91,7 +92,7 @@ export async function runWorkspaceEdit(args: Record<string, unknown>, env: Metho
 	} catch (error) {
 		return toolError(error instanceof Error ? error.message : String(error));
 	}
-	const abs = resolveWorkspacePath(path, env.cwd);
+	const abs = await resolveAllowedPath(path, env.cwd);
 
 	const raw = await readFile(abs, "utf8");
 	let normalized: string;
@@ -125,6 +126,7 @@ export async function runWorkspaceEdit(args: Record<string, unknown>, env: Metho
 export async function runWorkspaceGlob(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
 	const pattern = String(args.pattern ?? "").trim();
 	if (!pattern) return toolError("glob pattern must be a non-empty string.");
+	await assertGlobAllowed(pattern, env.cwd);
 	const results: string[] = [];
 	try {
 		for await (const match of glob(pattern, { cwd: env.cwd, onlyFiles: true }) as AsyncIterable<string>) {
@@ -147,7 +149,7 @@ export async function runWorkspaceGrep(args: Record<string, unknown>, env: Metho
 	} catch (error) {
 		return toolError(`Invalid grep pattern: ${error instanceof Error ? error.message : String(error)}`);
 	}
-	const root = resolveWorkspacePath(args.path ? String(args.path) : ".", env.cwd);
+	const root = await resolveAllowedPath(args.path ? String(args.path) : ".", env.cwd);
 	const statResult = await stat(root);
 	let files: string[];
 	if (statResult.isFile()) {

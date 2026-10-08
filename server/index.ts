@@ -6,6 +6,7 @@
  * Plans run relative to COMPUTE_CWD, or the directory the host launched the server in.
  */
 import { makeComputeToolDefinition } from "../tool/definition.ts";
+import { buildCodeParameterDescription, buildHostDescription } from "../tool/host-description.ts";
 import { discoverMcpMethods } from "./discovery.ts";
 import { StdioRpc } from "./rpc.ts";
 
@@ -18,14 +19,12 @@ const rpc = new StdioRpc();
 // Rebuilt after MCP discovery so the generated declarations include mcp.* methods.
 let tool = makeComputeToolDefinition();
 
+// Pi's description and guidelines assume compute is the only tool; MCP hosts get their own, short enough to survive truncation.
 function listedTool() {
-	return {
-		name: tool.name,
-		title: tool.label,
-		description: [tool.description, "", "Guidelines:", ...tool.promptGuidelines.map((line) => `- ${line}`)].join("\n"),
-		// TypeBox schemas are plain JSON Schema once serialized.
-		inputSchema: JSON.parse(JSON.stringify(tool.parameters)),
-	};
+	// TypeBox schemas are plain JSON Schema once serialized.
+	const inputSchema = JSON.parse(JSON.stringify(tool.parameters));
+	inputSchema.properties.code.description = buildCodeParameterDescription();
+	return { name: tool.name, title: tool.label, description: buildHostDescription(), inputSchema };
 }
 
 rpc.onRequest("initialize", async (params) => ({
