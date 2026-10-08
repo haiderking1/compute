@@ -62,6 +62,9 @@ export interface ProcessOutcome {
 	stderr: string;
 	/** Present only when the per-command timeout killed the process. */
 	timedOut?: true;
+	/** Present only when that stream hit MAX_PROCESS_OUTPUT_BYTES and was cut. */
+	stdoutTruncated?: true;
+	stderrTruncated?: true;
 }
 
 export interface MethodSpec {

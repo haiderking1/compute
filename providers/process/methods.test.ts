@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { MAX_PROCESS_OUTPUT_BYTES } from "../../core/constants.ts";
 import type { MethodEnv } from "../../core/types.ts";
 import { runSystemBash, runSystemExec } from "./methods.ts";
 
@@ -48,6 +49,26 @@ test("a command killed by its timeout says so", async () => {
 	const result = await runSystemExec({ argv: ["sleep", "5"], timeout: 0.2 }, methodEnv());
 	expect(Date.now() - started).toBeLessThan(2_000);
 	expect(result.details).toEqual({ codeModeValue: { exitCode: 137, stdout: "", stderr: "", timedOut: true } });
+});
+
+test("output past the cap is cut cleanly and flagged, not marked inline", async () => {
+	const overCap = MAX_PROCESS_OUTPUT_BYTES + 1024;
+	const result = await runSystemExec({ argv: ["head", "-c", String(overCap), "/dev/zero"] }, methodEnv());
+	const value = (result.details as { codeModeValue: Record<string, unknown> }).codeModeValue;
+	expect((value.stdout as string).length).toBe(MAX_PROCESS_OUTPUT_BYTES);
+	expect(value.stdoutTruncated).toBe(true);
+	expect(value.stderrTruncated).toBeUndefined();
+});
+
+test("multi-byte characters split across pipe chunks decode intact", async () => {
+	// One ASCII byte shifts 300k two-byte characters off the even 64 KiB pipe
+	// chunk boundaries, so some characters straddle two reads.
+	const script = 'process.stdout.write("a" + "é".repeat(300000))';
+	const result = await runSystemExec({ argv: [process.env.PI_COMPUTE_NODE || "node", "-e", script] }, methodEnv());
+	const value = (result.details as { codeModeValue: { stdout: string; stdoutTruncated?: true } }).codeModeValue;
+	expect(value.stdout.includes("\uFFFD")).toBe(false);
+	expect(value.stdout).toBe(`a${"é".repeat(300_000)}`);
+	expect(value.stdoutTruncated).toBeUndefined();
 });
 
 test("exec still returns the outcome of a program that starts", async () => {

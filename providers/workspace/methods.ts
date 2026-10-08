@@ -2,15 +2,18 @@ import { readFile, writeFile, mkdir, glob } from "node:fs/promises";
 import { dirname } from "node:path";
 import { generateUnifiedPatch, detectSupportedImageMimeTypeFromFile } from "@earendil-works/pi-coding-agent";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
-import { MAX_GLOB_RESULTS } from "../../core/constants.ts";
+import { MAX_GLOB_RESULTS, MAX_READ_BYTES } from "../../core/constants.ts";
 import type { EditReplacement, MethodEnv } from "../../core/types.ts";
 import { toolError, toolText, toolValue } from "../../results/tool-result.ts";
 import { applyFileReplacements, parseEditReplacements } from "./edits.ts";
 import { fallbackImageAttachment, loadProcessImage } from "./images.ts";
 import { assertGlobAllowed, resolveAllowedPath } from "./confine.ts";
-import { truncateText } from "./paths.ts";
 
 export { applyReplacements, parseEditReplacements } from "./edits.ts";
+
+function mib(bytes: number): string {
+	return (bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, "");
+}
 
 export async function runWorkspaceRead(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {
 	const path = String(args.path ?? "");
@@ -70,7 +73,16 @@ export async function runWorkspaceRead(args: Record<string, unknown>, env: Metho
 		const start = (offset ?? 1) - 1;
 		text = lines.slice(start, limit !== undefined ? start + limit : undefined).join("\n");
 	}
-	return toolText(truncateText(text));
+	// A plan can't tell a cut file from a whole one, so fail with what it needs
+	// to ask for a smaller range instead.
+	const selectedBytes = Buffer.byteLength(text, "utf8");
+	if (selectedBytes > MAX_READ_BYTES) {
+		const lineCount = bytes.toString("utf8").split("\n").length;
+		return toolError(
+			`${path}: selected text is ${mib(selectedBytes)} MiB, over the ${mib(MAX_READ_BYTES)} MiB read limit (file has ${lineCount} lines). Read a range with offset/limit, or search it with workspace.grep.`,
+		);
+	}
+	return toolText(text);
 }
 
 export async function runWorkspaceWrite(args: Record<string, unknown>, env: MethodEnv): Promise<AgentToolResult> {

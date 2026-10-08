@@ -3,7 +3,8 @@ import type { MethodSpec, ProviderSpec } from "../core/types.ts";
 import { runSystemBash, runSystemExec } from "./process/methods.ts";
 import { runWorkspaceEdit, runWorkspaceGlob, runWorkspaceGrep, runWorkspaceRead, runWorkspaceWrite } from "./workspace/methods.ts";
 
-const EXEC_RETURN = "{ exitCode: number; stdout: string; stderr: string; timedOut?: true }";
+const EXEC_RETURN =
+	"{ exitCode: number; stdout: string; stderr: string; timedOut?: true; stdoutTruncated?: true; stderrTruncated?: true }";
 const GREP_RETURN = "{ matches: Array<{ path: string; line: number; text: string }>; truncated: boolean }";
 const TIMEOUT_DESCRIPTION =
 	"Optional hard deadline in seconds for this command. A command killed by it returns timedOut: true and exitCode 137.";
@@ -16,7 +17,7 @@ function builtinProviders(): ProviderSpec[] {
 				{
 					name: "read",
 					description:
-						"Read the contents of a file (relative or absolute). Returns file text, optionally sliced by 1-indexed line offset and line limit. Image files (jpg, png, gif, webp, bmp) return an envelope that carries the image as an attachment plus a text note — return that envelope value unchanged from the plan to attach the image to your reply.",
+						"Read the contents of a file (relative or absolute). Returns the full file text, optionally sliced by 1-indexed line offset and line limit; fails instead of truncating when the selected text exceeds 4 MiB. Image files (jpg, png, gif, webp, bmp) return an envelope that carries the image as an attachment plus a text note — return that envelope value unchanged from the plan to attach the image to your reply.",
 					schema: Type.Object(
 						{
 							path: Type.String({ description: "Path to the file to read (relative or absolute)" }),
@@ -133,7 +134,7 @@ function builtinProviders(): ProviderSpec[] {
 				{
 					name: "exec",
 					description:
-						"Run one program directly with an exact argument array. No shell parsing, pipes, redirection, expansion, or implicit stdin. Never probe sudo availability or passwordless access, and never ask for or handle a password. Graphical applications cannot run as root.",
+						"Run one program directly with an exact argument array. stdout and stderr are each capped at 4 MiB; stdoutTruncated/stderrTruncated mark a cut stream. No shell parsing, pipes, redirection, expansion, or implicit stdin. Never probe sudo availability or passwordless access, and never ask for or handle a password. Graphical applications cannot run as root.",
 					schema: Type.Object(
 						{
 							argv: Type.Array(Type.String(), {
@@ -151,7 +152,7 @@ function builtinProviders(): ProviderSpec[] {
 				{
 					name: "bash",
 					description:
-						"Run a command through the shell (bash -lc). Unlike system.exec this parses the command string, so pipes, redirection, and expansion work. Prefer system.exec when an exact argv is enough.",
+						"Run a command through the shell (bash -lc). Unlike system.exec this parses the command string, so pipes, redirection, and expansion work. Prefer system.exec when an exact argv is enough. Output caps match system.exec.",
 					schema: Type.Object(
 						{
 							command: Type.String({ description: "The bash command line to run" }),

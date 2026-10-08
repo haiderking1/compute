@@ -1,30 +1,37 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { constants } from "node:os";
-import { MAX_STREAM_BYTES, PIPE_DRAIN_GRACE_MS } from "../../core/constants.ts";
+import { MAX_PROCESS_OUTPUT_BYTES, PIPE_DRAIN_GRACE_MS } from "../../core/constants.ts";
 import type { ProcessOutcome } from "../../core/types.ts";
 
-async function readStream(stream: NodeJS.ReadableStream | undefined, cap: number): Promise<string> {
-	if (!stream) return "";
-	let out = "";
+interface StreamText {
+	text: string;
+	truncated: boolean;
+}
+
+// Collect raw bytes and decode once: decoding per chunk garbles multi-byte
+// UTF-8 characters split across chunk boundaries. Truncation is reported as
+// a flag, never mixed into the output a plan parses.
+async function readStream(stream: NodeJS.ReadableStream | undefined, cap: number): Promise<StreamText> {
+	if (!stream) return { text: "", truncated: false };
+	const chunks: Buffer[] = [];
+	let bytes = 0;
 	let truncated = false;
 	try {
 		for await (const chunk of stream as AsyncIterable<Buffer>) {
-			out += chunk.toString("utf8");
-			if (out.length > cap) {
-				out = out.slice(0, cap);
+			if (bytes + chunk.length > cap) {
+				chunks.push(chunk.subarray(0, cap - bytes));
 				truncated = true;
 				break;
 			}
+			chunks.push(chunk);
+			bytes += chunk.length;
 		}
 	} catch {
 		/* ignore read errors */
 	}
-	if (truncated) {
-		(stream as { destroy?: () => void }).destroy?.();
-		out += "\n[truncated]";
-	}
-	return out;
+	if (truncated) (stream as { destroy?: () => void }).destroy?.();
+	return { text: Buffer.concat(chunks).toString("utf8"), truncated };
 }
 
 /** Kill an entire process group by its leader pid (setsid + killpg). */
@@ -94,8 +101,8 @@ export async function runProcess(
 		);
 		proc.on("error", (error) => rejectExit(describeSpawnError(error, options.cwd)));
 	});
-	const stdoutPromise = readStream(proc.stdout, MAX_STREAM_BYTES);
-	const stderrPromise = readStream(proc.stderr, MAX_STREAM_BYTES);
+	const stdoutPromise = readStream(proc.stdout, MAX_PROCESS_OUTPUT_BYTES);
+	const stderrPromise = readStream(proc.stderr, MAX_PROCESS_OUTPUT_BYTES);
 
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const kill = () => killProcessGroup(proc);
@@ -124,7 +131,11 @@ export async function runProcess(
 				return Promise.all([stdoutPromise, stderrPromise]);
 			}),
 		]);
-		return timedOut ? { exitCode, stdout, stderr, timedOut: true } : { exitCode, stdout, stderr };
+		const outcome: ProcessOutcome = { exitCode, stdout: stdout.text, stderr: stderr.text };
+		if (timedOut) outcome.timedOut = true;
+		if (stdout.truncated) outcome.stdoutTruncated = true;
+		if (stderr.truncated) outcome.stderrTruncated = true;
+		return outcome;
 	} finally {
 		if (proc.pid !== undefined) options.execGroups.delete(proc.pid);
 		if (timer) clearTimeout(timer);
