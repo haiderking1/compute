@@ -52,6 +52,24 @@ export async function runWorker(
 		detached: true,
 	});
 
+	const rl = createInterface({ input: child.stdout, crlfDelay: Infinity });
+
+	// Both listeners must exist before any await or early return. A spawn
+	// failure emits "error" and never "exit", and stdout may never end:
+	// unhandled it crashes the server, and unresolved it hangs the plan. A
+	// write to a worker that already died emits an async EPIPE on stdin that
+	// the try/catch around write() misses; the exit path below reports the
+	// death instead.
+	const exitPromise = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolveExit) => {
+		child.once("exit", (code, exitSignal) => resolveExit({ code, signal: exitSignal }));
+		child.on("error", (error) => {
+			settle(new Error(`Could not start compute worker: ${error.message}`));
+			rl.close();
+			resolveExit({ code: null, signal: null });
+		});
+	});
+	child.stdin.on("error", () => {});
+
 	let stderrBuf = "";
 	child.stderr.on("data", (chunk) => {
 		stderrBuf += chunk.toString("utf8");
@@ -165,12 +183,6 @@ export async function runWorker(
 			settle(new Error(`compute failed: ${msg.error || "unknown JavaScript error"}`));
 		}
 	};
-
-	const rl = createInterface({ input: child.stdout, crlfDelay: Infinity });
-
-	const exitPromise = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolveExit) => {
-		child.once("exit", (code, exitSignal) => resolveExit({ code, signal: exitSignal }));
-	});
 
 	const lineLoop = (async () => {
 		try {

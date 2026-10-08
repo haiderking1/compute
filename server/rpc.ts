@@ -29,6 +29,19 @@ export class StdioRpc {
 		this.inFlight.get(id)?.abort();
 	}
 
+	/**
+	 * Answer every in-flight request with an internal error and abort its work.
+	 * Used for exceptions that escaped all handlers: the host gets the message
+	 * instead of a dropped connection, and late results are discarded.
+	 */
+	failInFlight(message: string): void {
+		for (const [id, controller] of this.inFlight) {
+			this.inFlight.delete(id);
+			controller.abort();
+			this.send({ jsonrpc: "2.0", id, error: { code: -32603, message } });
+		}
+	}
+
 	notify(method: string, params?: Record<string, unknown>): void {
 		this.send({ jsonrpc: "2.0", method, ...(params ? { params } : {}) });
 	}
@@ -68,15 +81,22 @@ export class StdioRpc {
 		const id = message.id;
 		const controller = new AbortController();
 		this.inFlight.set(id, controller);
+		// failInFlight may already have answered this id; never answer twice.
+		const current = () => this.inFlight.get(id) === controller;
 		handler(params, controller.signal)
-			.then((result) => this.send({ jsonrpc: "2.0", id, result }))
-			.catch((error: unknown) =>
+			.then((result) => {
+				if (current()) this.send({ jsonrpc: "2.0", id, result });
+			})
+			.catch((error: unknown) => {
+				if (!current()) return;
 				this.send({
 					jsonrpc: "2.0",
 					id,
 					error: { code: -32603, message: error instanceof Error ? error.message : String(error) },
-				}),
-			)
-			.finally(() => this.inFlight.delete(id));
+				});
+			})
+			.finally(() => {
+				if (current()) this.inFlight.delete(id);
+			});
 	}
 }

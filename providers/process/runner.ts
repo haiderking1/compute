@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { MAX_STREAM_BYTES, PIPE_DRAIN_GRACE_MS } from "../../core/constants.ts";
 import type { ProcessOutcome } from "../../core/types.ts";
 
@@ -43,7 +44,16 @@ export function killProcessGroup(proc: import("node:child_process").ChildProcess
 		/* ignore */
 	}
 }
-
+/**
+ * Node reports a missing cwd as `spawn <program> ENOENT`, which reads as if
+ * the program were missing. Name the directory instead.
+ */
+function describeSpawnError(error: unknown, cwd: string): unknown {
+	if ((error as NodeJS.ErrnoException)?.code === "ENOENT" && !existsSync(cwd)) {
+		return new Error(`working directory does not exist: ${cwd}`);
+	}
+	return error;
+}
 
 export async function runProcess(
 	argv: string[],
@@ -52,12 +62,18 @@ export async function runProcess(
 	// `detached: true` makes the child a process-group leader so a single
 	// negative-pid signal reaps the process and every descendant (Raid's
 	// setsid + killpg).
-	const proc = spawn(argv[0], argv.slice(1), {
-		cwd: options.cwd,
-		env: options.env,
-		stdio: ["ignore", "pipe", "pipe"],
-		detached: true,
-	});
+	let proc: import("node:child_process").ChildProcess;
+	try {
+		proc = spawn(argv[0], argv.slice(1), {
+			cwd: options.cwd,
+			env: options.env,
+			stdio: ["ignore", "pipe", "pipe"],
+			detached: true,
+		});
+	} catch (error) {
+		// Bun throws spawn failures synchronously; Node emits them as "error".
+		throw describeSpawnError(error, options.cwd);
+	}
 	// Register the group leader pid so a shell that exits while leaving a
 	// background job (reparented to init but still in this pgid) is still
 	// reaped when the compute plan is cancelled or times out.
@@ -66,8 +82,12 @@ export async function runProcess(
 	// Attach the exit listener immediately. A fast command can exit before we
 	// finish draining pipes; attaching `once("exit")` only afterwards misses
 	// the event and the await hangs forever.
-	const exitPromise = new Promise<number | null>((resolveExit) => {
+	// A spawn failure (missing binary, bad cwd) emits "error" instead of "exit";
+	// unhandled, it crashes the server. Keep a permanent listener so a late
+	// "error" cannot crash it either.
+	const exitPromise = new Promise<number | null>((resolveExit, rejectExit) => {
 		proc.once("exit", (code) => resolveExit(code));
+		proc.on("error", (error) => rejectExit(describeSpawnError(error, options.cwd)));
 	});
 	const stdoutPromise = readStream(proc.stdout, MAX_STREAM_BYTES);
 	const stderrPromise = readStream(proc.stderr, MAX_STREAM_BYTES);

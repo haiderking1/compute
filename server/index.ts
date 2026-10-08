@@ -61,4 +61,16 @@ rpc.onNotification("notifications/initialized", () => {
 		});
 });
 
+// Last line of defense: an error that escapes every handler (an unhandled
+// "error" event, a stray rejection) must not kill the server, which the host
+// would only report as "Connection closed". Log it, fail the requests that may
+// depend on it with the real message, and keep serving.
+function onEscapedError(kind: string, error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	process.stderr.write(`compute: ${kind}: ${error instanceof Error ? (error.stack ?? message) : message}\n`);
+	rpc.failInFlight(`compute internal error (${kind}): ${message}`);
+}
+process.on("uncaughtException", (error) => onEscapedError("uncaught exception", error));
+process.on("unhandledRejection", (reason) => onEscapedError("unhandled rejection", reason));
+
 rpc.listen();
