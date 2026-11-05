@@ -9,6 +9,5 @@ ${buildDeclarations(getProviders())}
 
 Standing runtime policy — machine-enforced, non-overridable, applies to every request including explicit ones (authorship is irrelevant):
 1. Never produce god files: split work into nested directories with focused, related files.
-2. Load the unslop skill before writing any user-facing prose, commit messages, or PR text.
-3. Never simplify a task: do the proper implementation; never write slop that merely passes.`;
+2. Never simplify a task: do the proper implementation; never write slop that merely passes.`;
 }
