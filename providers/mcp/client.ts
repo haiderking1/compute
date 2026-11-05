@@ -1,21 +1,28 @@
 import type { McpContentPart, McpToolInfo } from "../../core/types.ts";
+import { type McpConfig, resolveMcpConfig } from "./config.ts";
+import { displayMcpUrl, redactMcpError } from "./redact.ts";
 
-export const MCP_URL = process.env.EXA_MCP_URL ?? "https://mcp.exa.ai/mcp";
 const MCP_CONNECT_TIMEOUT_MS = 15_000;
 
 /** Minimal no-dependency MCP Streamable HTTP client (JSON + SSE responses). */
 export class McpClient {
 	private sessionId: string | null = null;
 	private nextId = 1;
+	private readonly config: McpConfig;
+	readonly endpointLabel: string;
+
+	constructor(config: McpConfig = resolveMcpConfig()) {
+		this.config = config;
+		this.endpointLabel = displayMcpUrl(config.url) + " (" + config.source + ")";
+	}
 
 	private headers(): Record<string, string> {
 		const headers: Record<string, string> = {
 			"Content-Type": "application/json",
 			Accept: "application/json, text/event-stream",
+			...this.config.headers,
 		};
 		if (this.sessionId) headers["mcp-session-id"] = this.sessionId;
-		const key = process.env.EXA_API_KEY;
-		if (key) headers.Authorization = `Bearer ${key}`;
 		return headers;
 	}
 
@@ -38,8 +45,16 @@ export class McpClient {
 	}
 
 	private async post(method: string, params: unknown, expectResponse: boolean): Promise<unknown> {
+		try {
+			return await this.request(method, params, expectResponse);
+		} catch (error) {
+			throw new Error(redactMcpError(error, this.config));
+		}
+	}
+
+	private async request(method: string, params: unknown, expectResponse: boolean): Promise<unknown> {
 		const id = expectResponse ? this.nextId++ : undefined;
-		const response = await fetch(MCP_URL, {
+		const response = await fetch(this.config.url, {
 			method: "POST",
 			headers: this.headers(),
 			body: JSON.stringify(id === undefined ? { jsonrpc: "2.0", method } : { jsonrpc: "2.0", id, method, params }),
@@ -49,16 +64,24 @@ export class McpClient {
 		if (sessionId) this.sessionId = sessionId;
 		const text = await response.text();
 		if (!response.ok) {
-			throw new Error(`MCP ${method} failed: HTTP ${response.status} ${text.slice(0, 200)}`.trim());
+			throw new Error(`MCP ${method} failed: HTTP ${response.status} ${redactMcpError(text, this.config).slice(0, 200)}`.trim());
 		}
 		if (!expectResponse || text.trim() === "") return undefined;
 		const contentType = response.headers.get("content-type") ?? "";
 		const message = contentType.includes("text/event-stream")
 			? McpClient.parseSse(text, id!)
-			: (JSON.parse(text) as { error?: { message?: string }; result?: unknown });
+			: this.parseJson(text);
 		const err = (message as { error?: { message?: string } }).error;
 		if (err) throw new Error(err.message ?? JSON.stringify(err));
 		return (message as { result?: unknown }).result;
+	}
+
+	private parseJson(text: string): unknown {
+		try {
+			return JSON.parse(text);
+		} catch {
+			throw new Error("MCP response was not valid JSON");
+		}
 	}
 
 	async connect(): Promise<void> {
@@ -88,7 +111,7 @@ export class McpClient {
 				.filter((part) => part.type === "text")
 				.map((part) => part.text)
 				.join("\n");
-			throw new Error(text || `MCP tool ${name} failed.`);
+			throw new Error(redactMcpError(text || `MCP tool ${name} failed.`, this.config));
 		}
 		return result?.content;
 	}

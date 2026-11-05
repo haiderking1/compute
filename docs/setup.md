@@ -12,15 +12,18 @@ Compute does not replace the system prompt. No `zz-tools-only-prompt.ts` file or
 
 ## Optional MCP
 
-The built-in workspace and process providers need no MCP server or API key. On the first session start, the implementation nevertheless attempts MCP discovery automatically. There is currently no dedicated disable flag.
+The built-in workspace and process providers need no MCP server or API key. On the first session start, Compute attempts MCP discovery automatically.
 
-- `EXA_MCP_URL` overrides the default `https://mcp.exa.ai/mcp`.
-- `EXA_API_KEY`, if present, is sent as an Authorization Bearer header to that URL. Use only an endpoint you trust.
+- By default, Compute reuses `mcpServers.exa` from `~/.pi/agent/mcp.json`, including its authenticated URL and headers. `PI_CODING_AGENT_DIR` overrides the agent directory. No key is copied or written elsewhere. Project-local MCP configuration is not read.
+- Saved URL and header values can contain `${ENV_VAR}` references. Missing variables, disabled entries, malformed configuration, unsupported transports, OAuth, and command-based credentials produce a discovery warning rather than silently using a keyless connection. Local providers remain available.
+- Setting either `EXA_MCP_URL` or `EXA_API_KEY` selects environment-only configuration instead of the saved connection. `EXA_MCP_URL` defaults to `https://mcp.exa.ai/mcp`; `EXA_API_KEY`, if present, is sent as an Authorization Bearer header. Saved credentials are never forwarded to an overridden endpoint. Use only an endpoint you trust.
+- Without environment overrides or a saved Exa entry, the client uses `https://mcp.exa.ai/mcp` without a key.
+- `/compute` and discovery notifications show a credential-free endpoint and its source. Connection errors redact configured query values and header credentials. Run `/reload` after editing the saved connection or rotating its key.
 - The client implements Streamable HTTP JSON/SSE itself; no MCP SDK or local MCP server package is required.
 - Discovery adds methods under `mcp` from the server’s advertised schemas. Available names depend on the server; do not assume a fixed list.
 - Connection/request timeout is 15 seconds. Discovery failure produces a UI warning and leaves local providers available. The first discovery attempt is not automatically retried each session.
 
-Supply your own environment variables outside the repository. Do not commit keys, authenticated URLs, Pi settings, or model credentials. Live MCP access was not tested for this snapshot.
+Keep credentials in your user-level MCP configuration or environment, outside the repository. Do not commit keys, authenticated URLs, Pi settings, or model credentials. The standalone MCP server uses the same configuration resolution.
 
 ## Platform and UI caveats
 

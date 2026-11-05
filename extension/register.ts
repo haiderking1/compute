@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { McpClient, MCP_URL } from "../providers/mcp/client.ts";
+import { McpClient } from "../providers/mcp/client.ts";
 import { renderMcpContent } from "../providers/mcp/content.ts";
 import { toTypeBox } from "../providers/mcp/schema.ts";
 import { getProviders, refreshProviders } from "../providers/catalog.ts";
@@ -78,6 +78,7 @@ function safeNotify(
 	// declarations include them. pi replaces a tool registered under the same
 	// name and refreshes the active tool set.
 	let discoveryStarted = false;
+	let mcpEndpoint = "not connected";
 	pi.on("session_start", (_event, ctx) => {
 		// Run after every extension's own session_start handler so late-registered
 		// tools are already in the active set when we prune it down to compute.
@@ -86,6 +87,7 @@ function safeNotify(
 		discoveryStarted = true;
 		void (async () => {
 			const client = new McpClient();
+			mcpEndpoint = client.endpointLabel;
 			await client.connect();
 			const tools = await client.listTools();
 			const mcp = getProviders().find((provider) => provider.name === "mcp");
@@ -116,7 +118,7 @@ function safeNotify(
 				// The captured ctx can go stale if the session is replaced while MCP
 				// discovery connects — enforceComputeOnly guards stale ui access.
 				setTimeout(() => enforceComputeOnly(ctx), 0);
-				safeNotify(ctx, `compute: registered ${added} mcp.* web tool(s) from ${MCP_URL}`, "info");
+				safeNotify(ctx, `compute: registered ${added} mcp.* web tool(s) from ${mcpEndpoint}`, "info");
 			}
 		})().catch((error: unknown) => {
 			safeNotify(ctx, `compute: MCP discovery unavailable (${error instanceof Error ? error.message : String(error)})`, "warning");
@@ -149,7 +151,7 @@ function safeNotify(
 			}
 			lines.push(`Active model tools: ${pi.getActiveTools().join(", ")}`);
 			lines.push(`Worker: ${workerPath()}`);
-			lines.push(`MCP: ${MCP_URL}`);
+			lines.push(`MCP: ${mcpEndpoint}`);
 			safeNotify(ctx, lines.join("\n"), "info");
 		},
 	});
